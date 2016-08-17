@@ -1,0 +1,314 @@
+---
+title: "Interindividual differences in response to treatment: fact, fiction and erroneous analyses"
+author: "Eamonn O'Brien"
+date: '`r format(Sys.time(), "%d %B, %Y")`'
+output:
+  pdf_document:
+    fig_caption: yes
+    fig_height: 6
+    fig_width: 8
+    number_sections: yes
+  html_document: default
+---
+ 
+# Introduction
+An example is presented demonstrating why separately analysing treatment and control arms from a randomised controlled trial (RCT) and testing for an association of a covariate (biomarker) with observed 'responders' and 'non responders' in each arm is erroneous, wasteful and a seriously misleading analysis. This analysis scenario is never advisable and demonstrates a misunderstanding of the basics of randomised clinical trials.
+ 
+Analysts working in the personalised medicine field need to be knowledgeable of variance components analysis, understand the counterfactual premise that underpins RCTs, that is, what would have happened to the same patients in the treatment arm had they been in the control arm and be knowledgeable of appropriate statistical analyses for RCT data. This basic counterfactual tenet indicates that responders and non responders cannot be identified by examining trial arms separately.
+ 
+It is advisable to first estimate the true individual response using parallel information from both arms, and if present, judge if it is clinically relevant. If so, covariates that potentially modify or mediate response can be included in the statistical model of the two trial arms.
+ 
+```{r set-options, echo=FALSE, cache=FALSE, warning = FALSE}
+ 
+        rm(list=ls())
+        set.seed(8743)
+        startTime<-proc.time()
+        library(knitr)
+        options(width=120)
+        opts_chunk$set(comment = "", warning = FALSE, message = FALSE,
+                       echo = TRUE, tidy = FALSE, size="tiny",  cache=FALSE,
+                       progress=TRUE,
+                       cache.path = 'program_Cache/',
+                       fig.path='figure/')
+        
+        knitr::knit_hooks$set(inline = function(x) {
+          knitr:::format_sci(x, 'md')
+        })
+```
+ 
+```{r prerequisites, echo=FALSE ,eval=TRUE}
+        where<-"home" #this is used in the sourced program
+ 
+        path <- "R SCRIPTS\\USEFUL CODE"
+        path <- "GIT\\True-and-false-interindividual-differences-in-the-physiological-response-to-an-intervention" 
+        
+        work<-    paste("W:/", path, sep = "")
+        nonwork<- paste("~/", path, sep = "")
+        if (where=="home") {wd<- nonwork} else {wd<-work}
+       
+        path2 <- " " 
+        work2<-    paste("X:/", path2, sep = "")
+        nonwork2<- paste("~/X/", path2, sep = "")
+       
+        if (where=="home") {wd2<- nonwork2} else {wd2<-work2}
+       
+        work3<-    paste("X:/FUNCTIONS/R", sep = "")
+        nonwork3<- paste("~/X/FUNCTIONS/R", sep = "")
+       
+        if (where=="home") {wd3<- nonwork3} else {wd3<-work3}
+        setwd(wd)
+        opts_knit$set(root.dir = wd)      ##THIS SETS YOUR WORKING DIRECTORY
+       
+ 
+```
+ 
+```{r preliminaries perhaps , echo=FALSE, results='hide'}
+ 
+ 
+        list.of.packages <- c("nlme")
+       
+        new.packages <- list.of.packages[!(list.of.packages %in% installed.packages()[,"Package"])]
+        if(length(new.packages)) install.packages(new.packages)
+       
+        sapply(X = list.of.packages, require, character.only = TRUE)
+ 
+ 
+        p3 <- function(x) {formatC(x, format="f", digits=3)}
+        p4 <- function(x) {formatC(x, format="f", digits=4)}
+        p2 <- function(x) {formatC(x, format="f", digits=2)}
+        p1 <- function(x) {formatC(x, format="f", digits=0)}
+ 
+        is.even <- function(x){ x %% 2 == 0 }
+ 
+```           
+ 
+\pagebreak 
+
+# Simulate a RCT
+ 
+Simulate a randomised controlled trial with a baseline and follow up measurement and a constant treatment effect. A constant treatment effect means **everybody** in the treatment arm responds by a **constant** amount. **There are NO interindividual differences!** In the control arm the true baseline and true follow up are the same.
+ 
+```{r echo=TRUE, eval=TRUE, tidy=FALSE, results='asis' , cache=TRUE } 
+ 
+      n <- 5000
+      noise <- 100           # add noise (within person var & meas. error) to the baseline & foll. up
+      beta.treatment <- -250 # all trt'd subjects exp same trt effect, so no resp - non responders!!
+      # beta.treatment <- runif(n,-20,-5)  # subjects vary in response to treatment
+      clin.rel.diff <- 200
+      
+      pop_mu <- 0            # population mean 
+      pop_sd <- 200          # between person SD
+      ur.eligible <- -1000   # eligibility criteria for trial
+     
+      y.0true <- rnorm(n, pop_mu, pop_sd)                  # true baseline
+      y.0observed <- y.0true + rnorm(n, 0, 1*noise)        # observed baseline 
+      eligible <- ifelse(y.0observed > ur.eligible, 1, 0)  # Recruit all n as ur.eligible tiny
+      treat <- 1*(runif(n)<.5)                             # random treatment allocation
+      y.1true <- y.0true + (treat*beta.treatment)          # true follow up, treated only respond
+      y.1observed <- y.1true + rnorm(n, 0, 1*noise)        # observed follow up, noise added 
+      delta.observed <- y.1observed - y.0observed
+     
+      d <- data.frame(y.0true, y.0observed, eligible, treat , beta.treatment,
+                      y.1true, y.1observed, delta.observed)
+     
+      # prob that a member of pop observed baseline is eligible
+      # pnorm(ur.eligible, mean= pop_mu, sd=sqrt(pop_sd^2 + noise^2))
+      # 1- pnorm( (pop_mu - ur.eligible) / sqrt(pop_sd^2+noise^2) )  # z score calc.
+      
+      trial <- d[d$eligible==1,]    # select the trial subjects
+
+      
+```
+
+\pagebreak 
+
+# First rows of trial data
+ 
+'y.0true' is the true baseline for each subject. Yet it is not observed, 'y.0observed' is that which is observed and includes measurement error.  'y.1true' is 'y.0true'- 'beta.treatment', the treatment effect , for treated subjects only, otherwise equal to the baseline. But again this is not observed as it is measured with error and the estimate is recorded in variable 'y.1observed'.
+ 
+```{r trial data , echo=FALSE, results='markup' }
+ 
+ 
+      kable(trial[1:20, c(1,2,4:8)] , row.names = FALSE, digits = 2)
+      
+```   
+ 
+\pagebreak
+ 
+# Focus on the intervention arm only - not recommended!
+ 
+The subjects in blue were observed to respond only, those in red observed not to respond.
+ 
+```{r trt data , echo=FALSE   }
+ 
+ 
+      trt <- trial[trial$treat==1,]
+      trt$diff <- trt$y.1observed - trt$y.0observed
+      foo <- sort(trt[,"diff"])
+      
+      plot(foo, main="Individual changes in response in treated arm
+           Suggested individual differences due entirely to regression to the mean
+           and random error (within subject and measurement error)",
+      ylab= "Change in response", xlab="Individual subjects",
+      col=ifelse(foo > -clin.rel.diff, 'red', 'blue'))
+      abline(h=0, lty=3)
+      abline(h=beta.treatment)
+      abline(h=-clin.rel.diff, lty=2)
+
+      ctrl <- trial[trial$treat==0,]
+      ctrl$diff <- ctrl$y.1observed - ctrl$y.0observed
+      foox <- sort(ctrl[,"diff"])
+      
+```
+
+No of red points `r mean(foo > -clin.rel.diff)*length(foo)` in treatment arm. So `r mean(foo > -clin.rel.diff)` is the proportion that fail to show clinically relevant difference. In the control arm (similar plot to treatment arm plot not shown) `r mean(foox < -clin.rel.diff)*length(foox)` observed responders. So `r mean(foox < -clin.rel.diff)` is the proportion that show clinically relevant difference in the control arm.
+
+
+\pagebreak
+ 
+#  Treatment arm only
+ 
+Observed responders in blue. But **EVERYBODY** responded to the drug **EQUALLY** ! Apparent individual difference is due **ENTIRELY** to random within subject error, measurement error and regression to the mean.
+ 
+ 
+```{r , echo=FALSE, cache=FALSE, warning = FALSE}
+ 
+# remember they all responded to the drug !
+# so why are we chasing the blue dots!!!
+ 
+      with(trt, plot(diff ~  y.0observed, col=ifelse(diff < -clin.rel.diff, 'blue', 'black')
+                     , xlab="observed baseline",  ylab="follow up - baseline"  ,
+      main="Treatment arm: Individual changes against baseline, observed responders in blue", cex.main =1))
+      with(trt, abline(lm(diff ~  y.0observed)))
+      with(trt, abline(h=mean(beta.treatment), lty=2))
+      with(trt, abline(h=-clin.rel.diff, lty=2))
+     ctr <- trial[trial$treat==0,]
+     ctr$diff <- ctr$y.1observed - ctr$y.0observed
+ 
+     with(trt, cor.test( diff,   y.0observed, method="pearson"))
+ 
+ 
+```
+\pagebreak
+ 
+# Control arm only
+ 
+Observed responders in blue. But in truth **NO ONE** responded, apparent individual difference is due **ENTIRELY** to random within subject error, measurement error and regression to the mean.
+ 
+ 
+```{r , echo=FALSE, cache=FALSE, warning = FALSE}
+ 
+       with(ctr, plot(diff ~  y.0observed, col=ifelse(diff < -clin.rel.diff, 'blue', 'black')
+                      , xlab="observed baseline",  ylab="follow up - baseline"  ,
+                      main="Control arm:  Individual changes against baseline, observed responders in blue", cex.main =1))
+       with(ctr, abline(lm(diff ~  y.0observed)))
+       with(ctr, abline(h=mean(beta.treatment), lty=2))
+       with(trt, abline(h=-clin.rel.diff, lty=2))
+       with(ctr, cor.test( diff,   y.0observed, method="pearson"))
+      
+ 
+```
+\pagebreak
+ 
+# Analyse the trial correctly. Estimate the treatment effect adjusting for baseline
+ 
+```{r , echo=FALSE, cache=FALSE, warning = FALSE}
+ 
+      f0 <- lm(y.1observed ~ y.0observed + treat, trial)
+      summary(f0)
+      confint(f0)
+ 
+ 
+```
+\pagebreak
+ 
+# Look before leaping
+ 
+Calculate the difference in SDs of the changes between the intervention and control arms, confidence interval for the sd for changes in each arm
+ 
+```{r , echo=TRUE, cache=FALSE, warning = FALSE}
+ 
+      alpha <- 0.05
+ 
+      x <- trial[trial$treat %in% 0,"delta.observed"]
+ 
+      lstar <- qchisq(alpha/2, df=  length(x)-1)
+      rstar <- qchisq(1-alpha/2, df=  length(x)-1)
+     
+      up <- sqrt((length(x)-1)*var(x)/(lstar))
+      lo <- sqrt((length(x)-1)*var(x)/(rstar))
+      pe <- sqrt(var(x))
+     
+      # ctrl arm estimate with 95% CI
+      print(c(pe, lo, up), digits=3)
+     
+      
+      x1 <- trial[trial$treat %in% 1,"delta.observed"]
+     
+      lstar <- qchisq(alpha/2, df=  length(x1)-1)
+      rstar <- qchisq(1-alpha/2, df=  length(x1)-1)
+     
+      up <- sqrt((length(x1)-1)*var(x1)/(lstar))
+      lo <- sqrt((length(x1)-1)*var(x1)/(rstar))
+      pe <- sqrt(var(x1))
+     
+      # trt arm estimate with 95% CI
+      print(c(pe, lo, up), digits=3)
+     
+```
+ 
+\pagebreak
+ 
+# Typical true interindividual variation in response. Adjust for the influence of biological variation and measurement error (removal of noise).
+ 
+The linear mixed model p-value provides evidence the SD for true interindividual variation is consistent with zero, as it should be, given that the true magnitude of response in the simulation is constant for all subjects randomised to the treated arm. This result provides information that true individual response differences are negligible and analysis of interindividual response is unwarranted.
+ 
+```{r , echo=TRUE, cache=FALSE, warning = FALSE}
+ 
+      # True individual response to the intervention
+      sqrt(sd(x1)^2-sd(x)^2)  # can be -ve if more var in control group
+      
+      # LMM approach
+      m1 <- lme(delta.observed~ treat + y.0observed,
+          random=~1|treat , data=trial, method="REML",
+          weights = varIdent(form = ~1 | treat))
+     
+      m0 <-lme(delta.observed~ treat + y.0observed,
+          random=~1|treat , data=trial, method="REML")
+      
+      print(m1)
+      anova(m1,m0) # are the trt ctr interindividual variation in response different?
+     
+      c.grp <- m1$sigma
+      t.grp <- coef(m1$modelStruct$varStruct, uncons = FALSE)[[1]]*m1$sigma
+     
+      # true individual response to the intervention estimate
+      sqrt(t.grp^2 - c.grp^2) 
+      
+      # truth
+      sd(beta.treatment )
+ 
+```
+ 
+# References
+ 
+Based on 'Individual response to treatment: is it a valid assumption?' S Senn BMJ Vol 329 2004
+ 
+\clearpage
+\pagebreak
+ 
+ 
+# Computing Environment
+ 
+```{r, echo=FALSE}
+#opts_knit$set(root.dir = wd)   ##THIS SETS YOUR WORKING DIRECTORY
+options(width=70)
+sessionInfo()
+#print(wd)
+```
+```{r echo=FALSE}
+ 
+stopTime<-proc.time()
+ 
+```
+This took `r (stopTime-startTime)[1][[1]]` seconds to execute.
