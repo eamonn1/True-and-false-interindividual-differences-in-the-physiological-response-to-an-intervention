@@ -137,6 +137,10 @@ Simulate a randomised controlled trial with a baseline and follow up measurement
  
 # Focus on the intervention arm only - not recommended!
  
+<<<<<<< HEAD
+=======
+The subjects in blue were observed to respond only, those in red observed not to respond.
+>>>>>>> 8a47102b8061d03295a2755fbc561453661024e6
  
 ```{r trt data , echo=FALSE   }
  
@@ -156,12 +160,17 @@ Simulate a randomised controlled trial with a baseline and follow up measurement
 
       ctrl <- trial[trial$treat==0,]
       ctrl$diff <- ctrl$y.1observed - ctrl$y.0observed
-      foox <- sort(ctrl[,"diff"])
+      foox <- sort(ctrl[,"diff"]) 
       
 ```
 
+<<<<<<< HEAD
 The subjects in blue were observed to respond only, those in red observed not to respond.
 No of red points `r (mean(foo > -clin.rel.diff)*length(foo))` in treatment arm. So `r p2(mean(foo > -clin.rel.diff))` is the proportion that fail to show clinically relevant difference. In the control arm (similar plot to treatment arm plot not shown) `r (mean(foox < -clin.rel.diff)*length(foox))` observed responders. So `r p2(mean(foox < -clin.rel.diff))` is the proportion that show clinically relevant difference in the control arm.
+=======
+No of red points `r mean(foo > -clin.rel.diff)*length(foo)` in treatment arm. So `r mean(foo > -clin.rel.diff)` is the proportion that fail to show clinically relevant difference. In the control arm (similar plot to treatment arm plot not shown) `r mean(foox < -clin.rel.diff)*length(foox)` observed responders. So `r mean(foox < -clin.rel.diff)` is the proportion that show clinically relevant difference in the control arm.
+
+>>>>>>> 8a47102b8061d03295a2755fbc561453661024e6
 
 \pagebreak
  
