@@ -11,7 +11,7 @@ output:
   html_document: default
 ---
  
-# Introduction
+# Introduction 
 An example is presented demonstrating why separately analysing treatment and control arms from a randomised controlled trial (RCT) and testing for an association of a covariate (biomarker) with observed 'responders' and 'non responders' in each arm is erroneous, wasteful and a seriously misleading analysis. This analysis scenario is never advisable and demonstrates a misunderstanding of the basics of randomised clinical trials.
  
 Analysts working in the personalised medicine field need to be knowledgeable of variance components analysis, understand the counterfactual premise that underpins RCTs, that is, what would have happened to the same patients in the treatment arm had they been in the control arm and be knowledgeable of appropriate statistical analyses for RCT data. This basic counterfactual tenet indicates that responders and non responders cannot be identified by examining trial arms separately.
@@ -137,6 +137,7 @@ Simulate a randomised controlled trial with a baseline and follow up measurement
  
 # Focus on the intervention arm only - not recommended!
  
+The subjects in blue were observed to respond only, those in red observed not to respond.
  
 ```{r trt data , echo=FALSE   }
  
@@ -144,7 +145,6 @@ Simulate a randomised controlled trial with a baseline and follow up measurement
       trt <- trial[trial$treat==1,]
       trt$diff <- trt$y.1observed - trt$y.0observed
       foo <- sort(trt[,"diff"])
-      
       plot(foo, main="Individual changes in response in treated arm
            Suggested individual differences due entirely to regression to the mean
            and random error (within subject and measurement error)",
@@ -153,15 +153,23 @@ Simulate a randomised controlled trial with a baseline and follow up measurement
       abline(h=0, lty=3)
       abline(h=beta.treatment)
       abline(h=-clin.rel.diff, lty=2)
-
+      # this many were not observed to have reduced response by more than 5
+      # wrongly labelled as 'non responders'
+         # red, no that fail to show clin relevant difference
+     # mean(foo > -clin.rel.diff)     #proportion that fail to show clinically relevant difference
+      
+      
       ctrl <- trial[trial$treat==0,]
       ctrl$diff <- ctrl$y.1observed - ctrl$y.0observed
       foox <- sort(ctrl[,"diff"])
+      #mean(foo < -clin.rel.diff)*length(foo)   # No that show clin relevant difference
+      #mean(foo < -clin.rel.diff)     #proportion 
+      
       
 ```
 
-The subjects in blue were observed to respond only, those in red observed not to respond.
-No of red points `r (mean(foo > -clin.rel.diff)*length(foo))` in treatment arm. So `r p2(mean(foo > -clin.rel.diff))` is the proportion that fail to show clinically relevant difference. In the control arm (similar plot to treatment arm plot not shown) `r (mean(foox < -clin.rel.diff)*length(foox))` observed responders. So `r p2(mean(foox < -clin.rel.diff))` is the proportion that show clinically relevant difference in the control arm.
+No of red points `r mean(foo > -clin.rel.diff)*length(foo)` in treatment arm. So `r mean(foo > -clin.rel.diff)` is the proportion that fail to show clinically relevant difference. In the control arm (similar plot to treatment arm plot not shown) `r mean(foox < -clin.rel.diff)*length(foox)` observed responders. So `r mean(foox < -clin.rel.diff)` is the proportion that show clinically relevant difference in the control arm.
+
 
 \pagebreak
  
