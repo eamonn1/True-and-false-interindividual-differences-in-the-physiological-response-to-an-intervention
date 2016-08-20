@@ -12,7 +12,7 @@ output:
 ---
  
 # Introduction
-An example is presented demonstrating why separately analysing treatment and control arms from a randomised controlled trial (RCT) and testing for an association of a covariate (biomarker) with observed 'responders' and 'non responders' in each arm is erroneous, wasteful and a seriously misleading analysis. This analysis scenario is never advisable and demonstrates a misunderstanding of the basics of randomised clinical trials.
+An example is presented demonstrating why separately analysing treatment and control arms from a randomised controlled trial (RCT) and testing for an association of a covariate (biomarker) with observed 'responders' and 'non responders' in each arm is erroneous, wasteful and a seriously misleading analysis. This analysis scenario is never advisable and demonstrates a misunderstanding of the basics of randomised clinical trials. 
  
 Analysts working in the personalised medicine field need to be knowledgeable of variance components analysis, understand the counterfactual premise that underpins RCTs, that is, what would have happened to the same patients in the treatment arm had they been in the control arm and be knowledgeable of appropriate statistical analyses for RCT data. This basic counterfactual tenet indicates that responders and non responders cannot be identified by examining trial arms separately.
  
